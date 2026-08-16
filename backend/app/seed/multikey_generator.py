@@ -1,13 +1,21 @@
 """
-Semester OS — Groq Multi-Key Content Generation Runner (CLI).
+Semester OS — Topic-by-Topic Resumable Content Generation Runner (CLI).
 
-Usage:
-  python -m app.seed.multikey_generator --all
-  python -m app.seed.multikey_generator --subject CAP392
-  python -m app.seed.multikey_generator --type mcq
-  python -m app.seed.multikey_generator --type notes
+Usage Examples:
+  # Check live status across all 268 topics
   python -m app.seed.multikey_generator --status
-  python -m app.seed.multikey_generator --dry-run
+
+  # Seed all 268 topics sequentially/concurrently with 5 keys
+  python -m app.seed.multikey_generator --all
+
+  # Seed only Java (CAP392)
+  python -m app.seed.multikey_generator --subject CAP392
+
+  # Seed a sample of 10 topics to verify resume behavior
+  python -m app.seed.multikey_generator --max-topics 10
+
+  # Custom concurrency and MCQ targets
+  python -m app.seed.multikey_generator --workers 3 --target-mcqs 5
 """
 import sys
 import os
@@ -19,8 +27,7 @@ import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app.core.database import AsyncSessionLocal, create_tables
-from app.services.groq_content_engine.engine import GroqContentEngine
-from app.services.groq_content_engine.job_queue import ContentType
+from app.services.groq_content_engine.topic_seeder import TopicContentSeeder, TopicJobState
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,71 +38,65 @@ logger = logging.getLogger("MultiKeyRunner")
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="Groq Multi-Key Content Generation System for Semester OS")
-    parser.add_argument("--all", action="store_true", help="Generate all pending notes and MCQs")
-    parser.add_argument("--subject", type=str, default=None, help="Filter by course code (e.g. CAP392, CAP206)")
-    parser.add_argument("--type", type=str, choices=["notes", "mcq", "all"], default="all", help="Content type filter")
+    parser = argparse.ArgumentParser(description="Semester OS Topic-by-Topic Resumable Content Seeder")
+    parser.add_argument("--all", action="store_true", help="Process all pending topics in curriculum")
+    parser.add_argument("--subject", type=str, default=None, help="Filter by course code (e.g. CAP392, CAP206, CAP135, CAB213, CAB114)")
+    parser.add_argument("--unit", type=int, default=None, help="Filter by unit number (1-6)")
+    parser.add_argument("--max-topics", type=int, default=None, help="Limit number of topics to process in this run")
+    parser.add_argument("--target-mcqs", type=int, default=5, help="Target MCQs per topic (default: 5)")
     parser.add_argument("--workers", type=int, default=5, help="Number of concurrent workers (1-5)")
-    parser.add_argument("--status", action="store_true", help="Print current job queue status and exit")
-    parser.add_argument("--dry-run", action="store_true", help="Execute without committing to database")
-    parser.add_argument("--sync-only", action="store_true", help="Sync already approved jobs to DB without making new API calls")
+    parser.add_argument("--status", action="store_true", help="Print current state summary across all topics and exit")
+    parser.add_argument("--reset-state", action="store_true", help="Reset local state file and re-audit directly from database")
     args = parser.parse_args()
 
-    # Ensure DB tables exist
+    # Ensure tables exist
     await create_tables()
 
-    engine = GroqContentEngine(max_workers=args.workers)
+    state_file = "groq_seeding_state.json"
+    if args.reset_state and os.path.exists(state_file):
+        os.remove(state_file)
+        logger.info(f"Removed {state_file}. State will be cleanly re-audited from database.")
+
+    seeder = TopicContentSeeder(
+        state_file_path=state_file,
+        max_workers=args.workers,
+        target_mcqs_per_topic=args.target_mcqs,
+    )
 
     async with AsyncSessionLocal() as db:
-        await engine.initialize_and_preload(db)
-        before_user_snapshot = await engine.capture_user_data_snapshot(db)
+        await seeder.initialize_tasks_and_audit_db(db)
 
-        if args.status:
-            print("\n" + "=" * 50)
-            print("GROQ MULTI-KEY GENERATION QUEUE STATUS")
-            print("=" * 50)
-            summary = engine.job_queue.get_summary()
-            print(f"Configured Groq Keys: {engine.key_manager.key_count}/5")
-            print(f"Total Jobs:           {summary['total']}")
-            print(f"Pending Jobs:         {summary['pending']}")
-            print(f"Generating Jobs:      {summary['generating']}")
-            print(f"Approved Notes:       {summary['notes_approved']}")
-            print(f"Approved MCQ Batches: {summary['mcqs_approved']}")
-            print(f"Rejected:             {summary['rejected']}")
-            print(f"Failed:               {summary['failed']}")
-            print("=" * 50)
-            return
+    if args.status:
+        total = len(seeder.tasks)
+        complete = sum(1 for t in seeder.tasks.values() if t.state == TopicJobState.COMPLETE)
+        notes_saved = sum(1 for t in seeder.tasks.values() if t.note_status == "SAVED")
+        total_mcqs = sum(t.mcq_count_saved for t in seeder.tasks.values())
+        failed = sum(1 for t in seeder.tasks.values() if t.state in [TopicJobState.FAILED, TopicJobState.RETRY_REQUIRED])
+        pending = sum(1 for t in seeder.tasks.values() if t.state == TopicJobState.PENDING)
 
-        if args.sync_only:
-            logger.info("Syncing approved jobs to database...")
-            sync_res = await engine.sync_approved_jobs_to_db(db)
-            logger.info(f"Sync complete: {sync_res}")
-            report = await engine.generate_final_report(db, before_user_snapshot)
-            print("\n" + report)
-            return
+        print("\n" + "=" * 65)
+        print("SEMESTER OS — CONTENT SEEDING STATUS")
+        print("=" * 65)
+        print(f"Total Curriculum Topics:    {total}")
+        print(f"Completed Topics:           {complete} ({(complete/total)*100:.1f}%)")
+        print(f"Pending Topics:             {pending}")
+        print(f"Official Theory Notes Saved: {notes_saved} / {total}")
+        print(f"Validated MCQs in DB:       {total_mcqs}")
+        print(f"Duplicates Prevented:       {seeder.duplicate_detector.duplicates_prevented_count}")
+        print(f"Failed / Needs Retry:       {failed}")
+        print(f"Configured Groq Keys:       {seeder.key_manager.key_count}/5")
+        print("=" * 65 + "\n")
+        return
 
-        # Determine ContentType filter
-        c_type = None
-        if args.type == "notes":
-            c_type = ContentType.NOTE
-        elif args.type == "mcq":
-            c_type = ContentType.MCQ
+    # Run the topic-by-topic seeding pipeline
+    await seeder.run_seeding(
+        subject_filter=args.subject,
+        unit_filter=args.unit,
+        max_topics=args.max_topics,
+    )
 
-        pending_jobs = engine.job_queue.get_pending_jobs(content_type=c_type, subject_code=args.subject)
-        logger.info(f"Found {len(pending_jobs)} pending jobs to process.")
-
-        if pending_jobs and not args.dry_run:
-            def on_progress(job, success):
-                status_str = "APPROVED" if success else "FAILED"
-                print(f"[{job.job_id}] -> {status_str} (Assigned: {job.assigned_key})")
-
-            await engine.worker_pool.run_worker_pool(pending_jobs, progress_callback=on_progress)
-            logger.info("Worker pool execution finished. Committing to database...")
-            await engine.sync_approved_jobs_to_db(db)
-
-        # Print Final Report
-        report = await engine.generate_final_report(db, before_user_snapshot)
-        print("\n" + report)
+    # Print final summary
+    seeder.print_summary_report()
 
 
 if __name__ == "__main__":
