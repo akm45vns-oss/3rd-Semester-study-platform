@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: semester-os-backend
+    restart: always
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:///./semester_os.db}
+      - SECRET_KEY=${SECRET_KEY:-production-secret-key-change-me}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_API_KEYS=${GROQ_API_KEYS:-}
+      - AI_MODEL=${AI_MODEL:-llama-3.3-70b-versatile}
+      - ALLOWED_ORIGINS=["http://localhost","http://localhost:80","http://localhost:5173"]
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: semester-os-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
