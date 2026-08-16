@@ -27,8 +27,8 @@ from sqlalchemy import select, func
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, create_tables
 from app.models.curriculum import Subject, Unit, Topic
-from app.models.practice import Question, QuestionOption, QuestionType, Difficulty
-from app.models.progress import Note, TopicProgress, PracticeAttempt, Mistake, RevisionItem
+from app.models.practice import Question, QuestionOption, QuestionType, Difficulty, PracticeAttempt
+from app.models.progress import Note, TopicProgress, Mistake, RevisionItem
 from app.models.user import User
 from app.seed.curriculum_data import CURRICULUM, validate_curriculum
 from app.services.groq_content_engine.key_manager import GroqKeyManager, AllKeysUnavailableError, KeyStatus
