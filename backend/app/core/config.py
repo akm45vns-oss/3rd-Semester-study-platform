@@ -21,11 +21,21 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./semester_os.db"
 
-    # AI Configuration (Groq / OpenAI / Gemini)
+    # AI Configuration — Multi-Key Groq Engine
     AI_PROVIDER: str = "groq"
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    AI_MODEL: str = "llama-3.3-70b-versatile"
+
+    # Dedicated 5-Key Slot Configuration
+    GROQ_API_KEY_1: Optional[str] = None
+    GROQ_API_KEY_2: Optional[str] = None
+    GROQ_API_KEY_3: Optional[str] = None
+    GROQ_API_KEY_4: Optional[str] = None
+    GROQ_API_KEY_5: Optional[str] = None
+
+    # Fallback / Array Key Configurations
     GROQ_API_KEY: Optional[str] = None
     GROQ_API_KEYS: List[str] = []
-    AI_MODEL: str = "llama-3.3-70b-versatile"
 
     # CORS
     ALLOWED_ORIGINS: Union[List[str], str] = ["http://localhost:5173", "http://localhost:3000", "http://localhost"]
@@ -49,10 +59,45 @@ class Settings(BaseSettings):
         return ["*"]
 
     def get_groq_keys(self) -> List[str]:
-        keys = list(self.GROQ_API_KEYS) if self.GROQ_API_KEYS else []
-        if self.GROQ_API_KEY and self.GROQ_API_KEY not in keys:
-            keys.insert(0, self.GROQ_API_KEY)
-        return [k for k in keys if k and len(k.strip()) > 5]
+        """
+        Collect and deduplicate all valid configured Groq API keys across:
+        1. Dedicated slots GROQ_API_KEY_1 .. GROQ_API_KEY_5
+        2. Array GROQ_API_KEYS
+        3. Single GROQ_API_KEY
+        Returns only valid, non-empty, stripped keys.
+        """
+        raw_keys: List[str] = []
+
+        # 1. Dedicated slot keys
+        for key_slot in [
+            self.GROQ_API_KEY_1,
+            self.GROQ_API_KEY_2,
+            self.GROQ_API_KEY_3,
+            self.GROQ_API_KEY_4,
+            self.GROQ_API_KEY_5,
+        ]:
+            if key_slot and isinstance(key_slot, str) and len(key_slot.strip()) > 8:
+                raw_keys.append(key_slot.strip())
+
+        # 2. Array keys
+        if self.GROQ_API_KEYS:
+            for k in self.GROQ_API_KEYS:
+                if k and isinstance(k, str) and len(k.strip()) > 8:
+                    raw_keys.append(k.strip())
+
+        # 3. Single key fallback
+        if self.GROQ_API_KEY and isinstance(self.GROQ_API_KEY, str) and len(self.GROQ_API_KEY.strip()) > 8:
+            raw_keys.append(self.GROQ_API_KEY.strip())
+
+        # Deduplicate preserving order
+        seen = set()
+        deduped = []
+        for k in raw_keys:
+            if k not in seen:
+                seen.add(k)
+                deduped.append(k)
+
+        return deduped
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
