@@ -148,20 +148,36 @@ class TopicContentSeeder:
         all_q_texts = [r[0] for r in q_res.fetchall()]
         self.duplicate_detector.preload_existing(all_q_texts)
 
-        # 2. Build Topic DB map: (course_code, unit_num, topic_name) -> Topic model
-        topic_db_map: Dict[Tuple[str, int, str], Topic] = {}
-        top_res = await db.execute(
-            select(Topic)
+        # 2. Bulk load all topics with Unit number and Subject course_code
+        stmt = (
+            select(
+                Topic.id,
+                Topic.name,
+                Unit.unit_number,
+                Subject.course_code,
+            )
             .join(Unit, Topic.unit_id == Unit.id)
             .join(Subject, Unit.subject_id == Subject.id)
         )
-        for t in top_res.scalars().all():
-            u = await db.get(Unit, t.unit_id)
-            s = await db.get(Subject, u.subject_id) if u else None
-            if s and u:
-                topic_db_map[(s.course_code.upper(), u.unit_number, t.name.lower().strip())] = t
+        topics_rows = (await db.execute(stmt)).all()
+        topic_db_map = {
+            (row[3].upper(), row[2], row[1].lower().strip()): row[0]
+            for row in topics_rows
+        }
 
-        # 3. Populate tasks deterministic list
+        # 3. Bulk load Note counts per topic
+        notes_stmt = select(Note.topic_id, func.count(Note.id)).group_by(Note.topic_id)
+        notes_counts = dict((await db.execute(notes_stmt)).all())
+
+        # 4. Bulk load Question counts per topic
+        q_cnt_stmt = (
+            select(Question.topic_id, func.count(Question.id))
+            .where(Question.is_active == True)
+            .group_by(Question.topic_id)
+        )
+        q_counts = dict((await db.execute(q_cnt_stmt)).all())
+
+        # 5. Populate tasks deterministic list
         topic_counter = 1
         for subj in CURRICULUM:
             code = subj["course_code"].upper()
@@ -188,18 +204,10 @@ class TopicContentSeeder:
                     topic_counter += 1
 
                     # Check DB for existing Note and MCQs (Idempotency Check)
-                    db_topic = topic_db_map.get((code, u_num, top_name.lower().strip()))
-                    if db_topic:
-                        # Check note
-                        note_stmt = select(func.count(Note.id)).where(Note.topic_id == db_topic.id)
-                        has_note = ((await db.execute(note_stmt)).scalar() or 0) > 0
-
-                        # Check questions
-                        q_stmt = select(func.count(Question.id)).where(
-                            Question.topic_id == db_topic.id,
-                            Question.is_active == True,
-                        )
-                        mcq_count = (await db.execute(q_stmt)).scalar() or 0
+                    db_topic_id = topic_db_map.get((code, u_num, top_name.lower().strip()))
+                    if db_topic_id:
+                        has_note = notes_counts.get(db_topic_id, 0) > 0
+                        mcq_count = q_counts.get(db_topic_id, 0)
 
                         if has_note:
                             task.note_status = "SAVED"
