@@ -1,7 +1,7 @@
 import { type FC, type ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
-  LogOut, GraduationCap, ChevronRight, ArrowLeft,
+  LogOut, Flame, ChevronRight, ArrowLeft,
   Home, BookOpen, HelpCircle, Code2, Award,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
@@ -29,25 +29,25 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
       name: 'Subjects',
       to: '/subjects',
       icon: BookOpen,
-      isActive: location.pathname.startsWith('/subjects') || location.pathname.startsWith('/topics'),
+      isActive: location.pathname.startsWith('/subjects'),
     },
     {
       name: 'Practice',
       to: '/practice',
       icon: HelpCircle,
-      isActive: location.pathname.startsWith('/practice') || location.pathname.startsWith('/mistakes'),
+      isActive: location.pathname.startsWith('/practice') || location.pathname === '/mistakes',
     },
     {
-      name: 'Coding',
+      name: 'Coding Lab',
       to: '/coding',
       icon: Code2,
-      isActive: location.pathname.startsWith('/coding') || location.pathname.startsWith('/practicals'),
+      isActive: location.pathname.startsWith('/coding') || location.pathname === '/practicals',
     },
     {
       name: 'Exams',
       to: '/exams',
       icon: Award,
-      isActive: location.pathname.startsWith('/exams'),
+      isActive: location.pathname.startsWith('/exams') || location.pathname === '/revision',
     },
   ];
 
@@ -56,17 +56,17 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
       {/* ── Desktop Top Header Navigation ── */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-4">
-          {/* Logo */}
+          {/* Logo & Brand Name */}
           <NavLink to="/dashboard" className="flex items-center gap-2.5 group shrink-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-slate-900 text-white rounded-lg flex items-center justify-center shadow-sm">
-              <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-slate-900 to-blue-950 text-white rounded-lg flex items-center justify-center shadow-sm border border-slate-800">
+              <Flame className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
             </div>
             <div>
               <div className="text-sm sm:text-base font-bold text-slate-900 tracking-tight leading-none font-heading">
-                Semester OS
+                StudyForge
               </div>
               <div className="text-[10px] font-medium text-slate-500 mt-0.5 hidden sm:block">
-                Academic Study System
+                Engineering Mastery OS
               </div>
             </div>
           </NavLink>
@@ -108,7 +108,7 @@ export const AppLayout: FC<{ children: ReactNode }> = ({ children }) => {
                 <button
                   onClick={handleLogout}
                   className="btn-ghost text-xs p-2 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100"
-                  title="Log out of Semester OS"
+                  title="Log out of StudyForge"
                 >
                   <LogOut size={15} />
                   <span className="hidden sm:inline text-xs font-medium">Log out</span>

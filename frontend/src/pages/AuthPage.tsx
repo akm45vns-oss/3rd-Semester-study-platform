@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Eye, EyeOff } from 'lucide-react';
+import { Flame, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { Spinner, ErrorAlert } from '../components/ui';
 
@@ -39,14 +39,14 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8 selection:bg-blue-100 selection:text-blue-900">
       <div className="w-full max-w-sm animate-fade-in text-slate-900">
-        {/* Logo */}
+        {/* Logo & Brand Header */}
         <div className="flex flex-col items-center mb-6">
-          <div className="w-11 h-11 bg-slate-900 text-white rounded-xl flex items-center justify-center mb-2.5 shadow-sm">
-            <GraduationCap className="w-6 h-6" />
+          <div className="w-12 h-12 bg-gradient-to-br from-slate-900 to-blue-900 text-white rounded-xl flex items-center justify-center mb-2.5 shadow-md shadow-blue-900/10 border border-slate-800">
+            <Flame className="w-6 h-6 text-blue-400" />
           </div>
-          <h1 className="text-xl font-bold font-heading text-slate-900 tracking-tight">Semester OS</h1>
+          <h1 className="text-2xl font-black font-heading text-slate-900 tracking-tight">StudyForge</h1>
           <p className="text-xs text-slate-500 mt-0.5 text-center">
-            {mode === 'login' ? 'Sign in to access your curriculum and notes' : 'Create your student study account'}
+            {mode === 'login' ? 'Sign in to forge your academic mastery' : 'Create your student account on StudyForge'}
           </p>
         </div>
 

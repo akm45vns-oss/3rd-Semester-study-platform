@@ -327,7 +327,7 @@ export default function ExamMockPage() {
       {/* ── Minimalist Exam Header ── */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm px-4 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="font-bold text-sm text-slate-900 tracking-tight font-heading">SEMESTER OS</span>
+          <span className="font-bold text-sm text-slate-900 tracking-tight font-heading">STUDYFORGE</span>
           <span className="badge-brand font-mono text-[10px] font-bold">
             {session.exam_type === 'MIDTERM' ? 'Midterm Mock (30 MCQs)' : 'End-Term Mock (80 Marks)'}
           </span>

@@ -9,7 +9,7 @@ import json
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Semester OS"
+    APP_NAME: str = "StudyForge"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
 

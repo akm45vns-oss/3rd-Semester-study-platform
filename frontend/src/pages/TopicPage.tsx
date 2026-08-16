@@ -140,7 +140,7 @@ export default function TopicPage() {
             <div className="py-12 text-center space-y-3 text-slate-500">
               <BookOpen size={36} className="mx-auto text-slate-400" />
               <h3 className="text-base font-bold text-slate-900">No notes recorded yet</h3>
-              <p className="text-xs max-w-sm mx-auto">This topic syllabus reference is registered in Semester OS.</p>
+              <p className="text-xs max-w-sm mx-auto">This topic syllabus reference is registered in StudyForge.</p>
             </div>
           )}
         </article>

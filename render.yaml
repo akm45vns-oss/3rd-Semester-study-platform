@@ -20,5 +20,7 @@ services:
         sync: false
       - key: AI_MODEL
         value: llama-3.3-70b-versatile
+      - key: APP_NAME
+        value: "StudyForge"
       - key: DEBUG
         value: "false"

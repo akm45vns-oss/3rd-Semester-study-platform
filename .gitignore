@@ -13,10 +13,10 @@ ENV/
 
 # Environment variables
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
 !.env.production.example
+!.env.*.example
 
 # Node / Frontend
 node_modules/
